@@ -76,32 +76,99 @@ def check_integrity_anomalies(connection):
     print("Chequeo automático de anomalías en la integridad referencial.")
     cursor = connection.cursor()
     
-    queries = {
-        'inserts': """
-        -- Insert anomaly check (example)
-        SELECT * FROM information_schema.referential_constraints
-        """,
-        'deletes': """
-        -- Delete anomaly check (example)
-        SELECT * FROM information_schema.referential_constraints
-        """,
-        'updates': """
-        -- Update anomaly check (example)
-        SELECT * FROM information_schema.referential_constraints
-        """
-    }
-    
     anomalies_log = []
-    for action, query in queries.items():
-        anomalies_log.append(f"\nChequeo de anomalías para {action}:")
-        cursor.execute(query)
+    
+    # Chequeo de anomalías de inserción
+    anomalies_log.append("Chequeo de anomalías de inserción:")
+    try:
+        insert_query = """
+        SELECT 
+            parent.name AS TableName,
+            parent.column_name AS ColumnName,
+            child.column_name AS ForeignKey
+        FROM 
+            sys.foreign_keys AS fk
+        INNER JOIN 
+            sys.foreign_key_columns AS fkc ON fk.object_id = fkc.constraint_object_id
+        INNER JOIN 
+            sys.tables AS parent ON fkc.parent_object_id = parent.object_id
+        INNER JOIN 
+            sys.tables AS child ON fkc.referenced_object_id = child.object_id
+        WHERE 
+            NOT EXISTS (SELECT 1 FROM child WHERE parent.column_name = child.column_name)
+        """
+        cursor.execute(insert_query)
         rows = cursor.fetchall()
         
         if rows:
             for row in rows:
-                anomalies_log.append(str(row))
+                anomalies_log.append(f"Anomalía de inserción en la tabla {row.TableName}, columna {row.ColumnName}.")
         else:
-            anomalies_log.append(f"No se encontraron anomalías para {action}.")
+            anomalies_log.append("No se encontraron anomalías de inserción.")
+    except Exception as e:
+        anomalies_log.append(f"Error al chequear anomalías de inserción: {e}")
+    
+    # Chequeo de anomalías de eliminación
+    anomalies_log.append("Chequeo de anomalías de eliminación:")
+    try:
+        delete_query = """
+        SELECT 
+            parent.name AS TableName,
+            parent.column_name AS ColumnName,
+            child.column_name AS ForeignKey
+        FROM 
+            sys.foreign_keys AS fk
+        INNER JOIN 
+            sys.foreign_key_columns AS fkc ON fk.object_id = fkc.constraint_object_id
+        INNER JOIN 
+            sys.tables AS parent ON fkc.parent_object_id = parent.object_id
+        INNER JOIN 
+            sys.tables AS child ON fkc.referenced_object_id = child.object_id
+        WHERE 
+            EXISTS (SELECT 1 FROM parent WHERE parent.column_name NOT IN (SELECT child.column_name FROM child))
+        """
+        cursor.execute(delete_query)
+        rows = cursor.fetchall()
+        
+        if rows:
+            for row in rows:
+                anomalies_log.append(f"Anomalía de eliminación en la tabla {row.TableName}, columna {row.ColumnName}.")
+        else:
+            anomalies_log.append("No se encontraron anomalías de eliminación.")
+    except Exception as e:
+        anomalies_log.append(f"Error al chequear anomalías de eliminación: {e}")
+    
+    # Chequeo de anomalías de actualización
+    anomalies_log.append("Chequeo de anomalías de actualización:")
+    try:
+        update_query = """
+        SELECT 
+            parent.name AS TableName,
+            parent.column_name AS ColumnName,
+            child.column_name AS ForeignKey
+        FROM 
+            sys.foreign_keys AS fk
+        INNER JOIN 
+            sys.foreign_key_columns AS fkc ON fk.object_id = fkc.constraint_object_id
+        INNER JOIN 
+            sys.tables AS parent ON fkc.parent_object_id = parent.object_id
+        INNER JOIN 
+            sys.tables AS child ON fkc.referenced_object_id = child.object_id
+        WHERE 
+            parent.column_name IN (SELECT parent.column_name FROM parent)
+        AND 
+            child.column_name NOT IN (SELECT child.column_name FROM child)
+        """
+        cursor.execute(update_query)
+        rows = cursor.fetchall()
+        
+        if rows:
+            for row in rows:
+                anomalies_log.append(f"Anomalía de actualización en la tabla {row.TableName}, columna {row.ColumnName}.")
+        else:
+            anomalies_log.append("No se encontraron anomalías de actualización.")
+    except Exception as e:
+        anomalies_log.append(f"Error al chequear anomalías de actualización: {e}")
     
     filepath = write_to_file('integrity_anomalies_log.txt', anomalies_log)
     return anomalies_log, filepath
