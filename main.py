@@ -197,9 +197,9 @@ def check_integrity_anomalies(connection):
 def check_data_anomalies(connection):
     print("Chequeo automático de las anomalías de los datos.")
     cursor = connection.cursor()
-
+    
     data_anomalies_log = []
-
+        
     # Chequeo de valores nulos
     try:
         query = """
@@ -213,7 +213,7 @@ def check_data_anomalies(connection):
         cursor.execute(query)
         rows = cursor.fetchall()
         data_anomalies_log.append("CHEQUEO DE ANOMALÍAS DE NULLS:")
-        data_anomalies_log.append("=" * 40)
+        data_anomalies_log.append("="*40)
         if rows:
             found_nulls = False
             for row in rows:
@@ -232,16 +232,12 @@ def check_data_anomalies(connection):
                 cursor.execute(check_query)
                 result = cursor.fetchone()
                 if result and result.null_count > 0:
-                    data_anomalies_log.append(
-                        f"{table_name}: {column_name} - Datos nulos: {result.null_count}"
-                    )
+                    data_anomalies_log.append(f"{table_name}: {column_name} - Datos nulos: {result.null_count}")
                     found_nulls = True
             if not found_nulls:
                 data_anomalies_log.append("No se encontraron valores nulos.")
         else:
-            data_anomalies_log.append(
-                "No se encontraron columnas que permitan valores nulos."
-            )
+            data_anomalies_log.append("No se encontraron columnas que permitan valores nulos.")
     except Exception as e:
         data_anomalies_log.append(f"Error al ejecutar el chequeo de nulls: {e}")
 
@@ -249,7 +245,7 @@ def check_data_anomalies(connection):
     try:
         query = """
         SELECT 
-            table_name, column_name, data_type
+            table_name, column_name
         FROM 
             information_schema.columns
         WHERE 
@@ -258,50 +254,31 @@ def check_data_anomalies(connection):
         cursor.execute(query)
         columns = cursor.fetchall()
         data_anomalies_log.append("CHEQUEO DE ANOMALÍAS DE DUPLICADOS:")
-        data_anomalies_log.append("=" * 40)
+        data_anomalies_log.append("="*40)
         for column in columns:
             table_name = column.table_name
             column_name = column.column_name
-            data_type = column.data_type
-            if data_type not in [
-                "text",
-                "ntext",
-                "image",
-            ]:  # Filtrar tipos de datos incompatibles
-                try:
-                    check_query = f"""
-                    SELECT 
-                        '{table_name}' AS table_name, 
-                        '{column_name}' AS column_name, 
-                        COUNT(*) AS duplicate_count
-                    FROM 
-                        {table_name}
-                    GROUP BY 
-                        {column_name}
-                    HAVING 
-                        COUNT(*) > 1
-                    """
-                    cursor.execute(check_query)
-                    rows = cursor.fetchall()
-                    if rows:
-                        for row in rows:
-                            data_anomalies_log.append(
-                                f"{table_name}: {column_name} - Duplicado: {row.duplicate_count}"
-                            )
-                    else:
-                        data_anomalies_log.append(
-                            f"No se encontraron duplicados en {table_name}.{column_name}."
-                        )
-                except Exception as inner_e:
-                    data_anomalies_log.append(
-                        f"Error al chequear la columna {column_name} en la tabla {table_name}: {inner_e}"
-                    )
+            check_query = f"""
+            SELECT 
+                '{table_name}' AS table_name, 
+                '{column_name}' AS column_name, 
+                COUNT(*) AS duplicate_count
+            FROM 
+                {table_name}
+            GROUP BY 
+                {column_name}
+            HAVING 
+                COUNT(*) > 1
+            """
+            cursor.execute(check_query)
+            rows = cursor.fetchall()
+            if rows:
+                for row in rows:
+                    data_anomalies_log.append(f"{table_name}: {column_name} - Duplicado: {row.duplicate_count}")
             else:
-                data_anomalies_log.append(
-                    f"Columna {column_name} en tabla {table_name} es de tipo {data_type} y fue omitida."
-                )
+                data_anomalies_log.append(f"No se encontraron duplicados en {table_name}.{column_name}.")
     except Exception as e:
-        data_anomalies_log.append(f"Error al ejecutar el chequeo de duplicates: {e}")
+        data_anomalies_log.append(f"Error al ejecutar el chequeo de duplicados: {e}")
 
     # Chequeo de outliers
     try:
@@ -316,7 +293,7 @@ def check_data_anomalies(connection):
         cursor.execute(query)
         numeric_columns = cursor.fetchall()
         data_anomalies_log.append("CHEQUEO DE ANOMALÍAS DE OUTLIERS:")
-        data_anomalies_log.append("=" * 40)
+        data_anomalies_log.append("="*40)
         for column in numeric_columns:
             table_name = column.table_name
             column_name = column.column_name
@@ -332,9 +309,9 @@ def check_data_anomalies(connection):
             cursor.execute(check_query)
             result = cursor.fetchone()
             if result:
-                data_anomalies_log.append(
-                    f"{table_name}: {column_name} - Max: {result.max_value}, Min: {result.min_value}"
-                )
+                data_anomalies_log.append(f"{table_name}: {column_name} - Max: {result.max_value}, Min: {result.min_value}")
+            else:
+                data_anomalies_log.append(f"No se encontraron valores para {table_name}.{column_name}.")
     except Exception as e:
         data_anomalies_log.append(f"Error al ejecutar el chequeo de outliers: {e}")
 
@@ -363,18 +340,14 @@ def check_data_anomalies(connection):
         cursor.execute(query)
         rows = cursor.fetchall()
         data_anomalies_log.append("CHEQUEO DE ANOMALÍAS DE REGISTROS HUÉRFANOS:")
-        data_anomalies_log.append("=" * 40)
+        data_anomalies_log.append("="*40)
         if rows:
             for row in rows:
-                data_anomalies_log.append(
-                    f"{row.foreign_key_name} - Table: {row.parent_table}({row.parent_column}) -> {row.referenced_table}({row.referenced_column})"
-                )
+                data_anomalies_log.append(f"{row.foreign_key_name} - Table: {row.parent_table}({row.parent_column}) -> {row.referenced_table}({row.referenced_column})")
         else:
             data_anomalies_log.append("No se encontraron registros huérfanos.")
     except Exception as e:
-        data_anomalies_log.append(
-            f"Error al ejecutar el chequeo de orphaned_records: {e}"
-        )
+        data_anomalies_log.append(f"Error al ejecutar el chequeo de orphaned_records: {e}")
 
     # Chequeo de constraints únicos
     try:
@@ -395,18 +368,14 @@ def check_data_anomalies(connection):
         cursor.execute(query)
         rows = cursor.fetchall()
         data_anomalies_log.append("CHEQUEO DE ANOMALÍAS DE CONSTRAINTS ÚNICOS:")
-        data_anomalies_log.append("=" * 40)
+        data_anomalies_log.append("="*40)
         if rows:
             for row in rows:
-                data_anomalies_log.append(
-                    f"{row.table_name}: {row.column_name} - Constraint único: {row.constraint_name}"
-                )
+                data_anomalies_log.append(f"{row.table_name}: {row.column_name} - Constraint único: {row.constraint_name}")
         else:
             data_anomalies_log.append("No se encontraron constraints únicos.")
     except Exception as e:
-        data_anomalies_log.append(
-            f"Error al ejecutar el chequeo de unique_constraints: {e}"
-        )
+        data_anomalies_log.append(f"Error al ejecutar el chequeo de unique_constraints: {e}")
 
     # Chequeo de validez de fecha y hora
     try:
@@ -421,7 +390,7 @@ def check_data_anomalies(connection):
         cursor.execute(query)
         datetime_columns = cursor.fetchall()
         data_anomalies_log.append("CHEQUEO DE ANOMALÍAS DE VALIDEZ DE FECHA Y HORA:")
-        data_anomalies_log.append("=" * 40)
+        data_anomalies_log.append("="*40)
         for column in datetime_columns:
             table_name = column.table_name
             column_name = column.column_name
@@ -437,19 +406,15 @@ def check_data_anomalies(connection):
             cursor.execute(check_query)
             result = cursor.fetchone()
             if result:
-                data_anomalies_log.append(
-                    f"{table_name}: {column_name} - Min: {result.min_date}, Max: {result.max_date}"
-                )
+                data_anomalies_log.append(f"{table_name}: {column_name} - Min: {result.min_date}, Max: {result.max_date}")
     except Exception as e:
-        data_anomalies_log.append(
-            f"Error al ejecutar el chequeo de date_time_validity: {e}"
-        )
+        data_anomalies_log.append(f"Error al ejecutar el chequeo de date_time_validity: {e}")
 
     # Chequeo de tamaño de datos
     try:
         query = """
         SELECT 
-            table_name, column_name, data_type, character_maximum_length
+            table_name, column_name, character_maximum_length
         FROM 
             information_schema.columns
         WHERE 
@@ -458,41 +423,26 @@ def check_data_anomalies(connection):
         cursor.execute(query)
         size_columns = cursor.fetchall()
         data_anomalies_log.append("CHEQUEO DE ANOMALÍAS DE TAMAÑO DE DATOS:")
-        data_anomalies_log.append("=" * 40)
+        data_anomalies_log.append("="*40)
+        found_size_anomalies = False
         for column in size_columns:
             table_name = column.table_name
             column_name = column.column_name
-            data_type = column.data_type
-            if data_type not in [
-                "text",
-                "ntext",
-                "image",
-            ]:  # Filtrar tipos de datos incompatibles
-                try:
-                    max_length = column.character_maximum_length
-                    check_query = f"""
-                    SELECT 
-                        '{table_name}' AS table_name, 
-                        '{column_name}' AS column_name, 
-                        MAX(LEN({column_name})) AS max_size
-                    FROM 
-                        {table_name}
-                    """
-                    cursor.execute(check_query)
-                    result = cursor.fetchone()
-                    if result and result.max_size > max_length:
-                        data_anomalies_log.append(
-                            f"{table_name}: {column_name} - Tamaño de datos excede el máximo permitido de {max_length}"
-                        )
-                except Exception as inner_e:
-                    data_anomalies_log.append(
-                        f"Error al chequear el tamaño de la columna {column_name} en la tabla {table_name}: {inner_e}"
-                    )
-            else:
-                data_anomalies_log.append(
-                    f"Columna {column_name} en tabla {table_name} es de tipo {data_type} y fue omitida."
-                )
-        else:
+            max_length = column.character_maximum_length
+            check_query = f"""
+            SELECT 
+                '{table_name}' AS table_name, 
+                '{column_name}' AS column_name, 
+                MAX(LEN({column_name})) AS max_size
+            FROM 
+                {table_name}
+            """
+            cursor.execute(check_query)
+            result = cursor.fetchone()
+            if result and result.max_size > max_length:
+                data_anomalies_log.append(f"{table_name}: {column_name} - Tamaño de datos excede el máximo permitido de {max_length}")
+                found_size_anomalies = True
+        if not found_size_anomalies:
             data_anomalies_log.append("No se encontraron anomalías de tamaño de datos.")
     except Exception as e:
         data_anomalies_log.append(f"Error al ejecutar el chequeo de data_size: {e}")
@@ -501,7 +451,7 @@ def check_data_anomalies(connection):
     try:
         query = """
         SELECT 
-            table_name, column_name, data_type
+            table_name, column_name
         FROM 
             information_schema.columns
         WHERE 
@@ -510,50 +460,34 @@ def check_data_anomalies(connection):
         cursor.execute(query)
         columns = cursor.fetchall()
         data_anomalies_log.append("CHEQUEO DE ANOMALÍAS DE DATOS EN BLANCO:")
-        data_anomalies_log.append("=" * 40)
+        data_anomalies_log.append("="*40)
+        found_blank_data = False
         for column in columns:
             table_name = column.table_name
             column_name = column.column_name
-            data_type = column.data_type
-            if data_type not in [
-                "image",
-                "text",
-                "ntext",
-            ]:  # Filtrar tipos de datos incompatibles
-                try:
-                    check_query = f"""
-                    SELECT 
-                        '{table_name}' AS table_name, 
-                        '{column_name}' AS column_name, 
-                        COUNT(*) AS blank_count
-                    FROM 
-                        {table_name}
-                    WHERE 
-                        {column_name} IS NULL OR {column_name} = ''
-                    """
-                    cursor.execute(check_query)
-                    result = cursor.fetchone()
-                    if result and result.blank_count > 0:
-                        data_anomalies_log.append(
-                            f"{table_name}: {column_name} - Datos en blanco: {result.blank_count}"
-                        )
-                except Exception as inner_e:
-                    data_anomalies_log.append(
-                        f"Error al chequear la columna {column_name} en la tabla {table_name}: {inner_e}"
-                    )
-            else:
-                data_anomalies_log.append(
-                    f"Columna {column_name} en tabla {table_name} es de tipo {data_type} y fue omitida."
-                )
-        else:
+            check_query = f"""
+            SELECT 
+                '{table_name}' AS table_name, 
+                '{column_name}' AS column_name, 
+                COUNT(*) AS blank_count
+            FROM 
+                {table_name}
+            WHERE 
+                {column_name} IS NULL OR {column_name} = ''
+            """
+            cursor.execute(check_query)
+            result = cursor.fetchone()
+            if result and result.blank_count > 0:
+                data_anomalies_log.append(f"{table_name}: {column_name} - Datos en blanco: {result.blank_count}")
+                found_blank_data = True
+        if not found_blank_data:
             data_anomalies_log.append("No se encontraron datos en blanco.")
     except Exception as e:
         data_anomalies_log.append(f"Error al ejecutar el chequeo de blank_data: {e}")
 
     # Guardar y retornar resultados
-    filepath = write_to_file("data_anomalies_log.txt", data_anomalies_log)
+    filepath = write_to_file('data_anomalies_log.txt', data_anomalies_log)
     return data_anomalies_log, filepath
-
 
 def generate_custom_log(connection):
     print("Generación de log personalizado para cada caso.")
