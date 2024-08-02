@@ -145,7 +145,8 @@ def check_integrity_anomalies(connection):
         delete_check_query = f"""
         SELECT COUNT(*) AS OrphanedRows
         FROM {fk.TableName} t
-        WHERE NOT EXISTS (
+        WHERE t.{fk.ColumnName} IS NOT NULL
+        AND NOT EXISTS (
             SELECT 1
             FROM {fk.ReferencedTableName} r
             WHERE r.{fk.ReferencedColumnName} = t.{fk.ColumnName}
@@ -169,7 +170,7 @@ def check_integrity_anomalies(connection):
         SELECT COUNT(*) AS OrphanedRows
         FROM {fk.TableName} t
         LEFT JOIN {fk.ReferencedTableName} r ON t.{fk.ColumnName} = r.{fk.ReferencedColumnName}
-        WHERE r.{fk.ReferencedColumnName} IS NULL;
+        WHERE t.{fk.ColumnName} IS NOT NULL AND r.{fk.ReferencedColumnName} IS NULL;
         """
         cursor.execute(update_check_query)
         result = cursor.fetchone()
@@ -185,13 +186,6 @@ def check_integrity_anomalies(connection):
     # Escribir el log de anomalías a un archivo
     filepath = write_to_file("integrity_anomalies_log.txt", anomalies_log)
     return anomalies_log, filepath
-
-
-# def write_to_file(filename, content):
-#     with open(filename, "w") as file:
-#         for line in content:
-#             file.write(line + "\n")
-#     return filename
 
 
 def check_data_anomalies(connection):
