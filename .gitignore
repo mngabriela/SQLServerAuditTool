@@ -1,0 +1,18 @@
+# Excluir el entorno virtual de Python
+venv/
+ENV/
+
+# Excluir archivos de logs
+logs/
+*.log
+
+# Excluir archivos de caché de Python
+__pycache__/
+*.py[cod]
+
+# Excluir archivos temporales de sistemas operativos
+.DS_Store
+Thumbs.db
+
+# Excluir archivos de configuración de entorno
+.env

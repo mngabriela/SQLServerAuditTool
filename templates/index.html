@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <title>Aplicación de auditoría de base de datos</title>
+</head>
+<body>
+    <div class="container">
+        <h1>Aplicación de auditoría de base de datos</h1>
+        
+        <form action="{{ url_for('connect') }}" method="post">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="server">Servidor:</label>
+                    <input type="text" id="server" name="server" required>
+                </div>
+                <div class="form-group">
+                    <label for="database">Base de datos:</label>
+                    <input type="text" id="database" name="database" required>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="username">Usuario:</label>
+                    <input type="text" id="username" name="username" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">Contraseña:</label>
+                    <input type="password" id="password" name="password" required>
+                </div>
+            </div>
+            <div class="button-container">
+                <button type="submit">Conectar</button>
+            </div>
+        </form>
+        
+        
+        <form action="{{ url_for('audit') }}" method="post">
+            <div class="form-group">
+                <label for="option">Seleccionar auditoría:</label>
+                <select id="option" name="option" required>
+                    <option value="1">Identificar Relaciones</option>
+                    <option value="2">Chequear Anomalías de Integridad</option>
+                    <option value="3">Chequear Anomalías de Datos</option>
+                    <option value="4">Generar Log Personalizado</option>
+                </select>
+            </div>
+            <button type="submit">Ejecutar</button>
+        </form>
+        
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-messages">
+                    {% for category, message in messages %}
+                        <div class="flash {{ category }}">{{ message }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+        
+        {% if session.get('results') %}
+            <a href="{{ url_for('results') }}">Ver Resultados</a>
+        {% endif %}
+    </div>
+</body>
+</html>
